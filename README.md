@@ -1,4 +1,13 @@
-# SleepTrack API
+# 💤 SleepTrack API
+
+![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![JWT](https://img.shields.io/badge/JWT-000000?style=for-the-badge&logo=JSON%20web%20tokens)
+![Tortoise ORM](https://img.shields.io/badge/Tortoise%20ORM-4B8BBE?style=for-the-badge&logo=tortoise&logoColor=white)
+![Uvicorn](https://img.shields.io/badge/Uvicorn-4051B5?style=for-the-badge&logo=uvicorn&logoColor=white)
+![Pydantic](https://img.shields.io/badge/Pydantic-E92063?style=for-the-badge&logo=pydantic&logoColor=white)
+![Bcrypt](https://img.shields.io/badge/Bcrypt-4BC51D?style=for-the-badge&logo=auth0&logoColor=white)
 
 A comprehensive backend API for sleep tracking and analytics, built with FastAPI and PostgreSQL.
 
