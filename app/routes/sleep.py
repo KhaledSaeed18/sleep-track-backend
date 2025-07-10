@@ -39,15 +39,19 @@ async def create_sleep_session(
     return SleepSessionResponse.model_validate(sleep_session)
 
 
-@router.get("/", response_model=List[SleepSessionResponse])
+@router.get("/", response_model=Dict[str, Any])
 async def get_sleep_sessions(
     skip: int = 0,
     limit: int = 100,
     current_user: User = Depends(get_current_user)
 ):
-    """Get user's sleep sessions."""
+    """Get user's sleep sessions with total count."""
+    total_count = await SleepSession.filter(user_id=current_user.id).count()
     sessions = await SleepSession.filter(user_id=current_user.id).offset(skip).limit(limit).all()
-    return [SleepSessionResponse.from_orm(session) for session in sessions]
+    return {
+        "count": total_count,
+        "sessions": [SleepSessionResponse.from_orm(session) for session in sessions]
+    }
 
 
 @router.get("/stats", response_model=SleepStats)
@@ -82,25 +86,6 @@ async def get_sleep_stats(current_user: User = Depends(get_current_user)):
         total_sleep_time_minutes=int(total_sleep_minutes)
     )
 
-
-@router.get("/timeline", response_model=List[SleepSessionResponse])
-async def get_sleep_timeline(
-    days: int = Query(default=30, ge=1, le=365, description="Number of days to retrieve (1-365)"),
-    current_user: User = Depends(get_current_user)
-):
-    """Get user's sleep sessions for timeline visualization."""
-    # Calculate the date range
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=days)
-    
-    # Fetch sleep sessions within the date range, ordered by sleep_start
-    sessions = await SleepSession.filter(
-        user_id=current_user.id,
-        sleep_start__gte=start_date,
-        sleep_start__lte=end_date
-    ).order_by('sleep_start').all()
-    
-    return [SleepSessionResponse.from_orm(session) for session in sessions]
 
 
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
