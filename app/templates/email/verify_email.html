@@ -1,0 +1,8 @@
+{% extends "_layout.html" %}
+{% from "_button.html" import button %}
+{% block content %}
+<p>Hi {{ first_name }},</p>
+<p>Welcome to {{ app_name }}! Please confirm your email address so we can keep your account secure and send your weekly sleep reports.</p>
+{{ button(link, "Confirm email") }}
+<p>This link expires in {{ expires_hours }} hours. If you didn't create an account, you can ignore this email.</p>
+{% endblock %}

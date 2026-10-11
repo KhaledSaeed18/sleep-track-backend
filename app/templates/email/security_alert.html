@@ -1,0 +1,6 @@
+{% extends "_layout.html" %}
+{% block content %}
+<p>Hi {{ first_name }},</p>
+<p>{{ message }}</p>
+<p>As a precaution we signed out the affected device. If you don't recognise this activity, <a href="{{ frontend_url }}/auth/forgot-password" style="color:#4f46e5;">reset your password</a> and review your <a href="{{ frontend_url }}/settings/security" style="color:#4f46e5;">active sessions</a>.</p>
+{% endblock %}
