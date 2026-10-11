@@ -1,0 +1,103 @@
+name: sleeptrack
+
+x-app: &app
+  build:
+    context: .
+  image: sleeptrack-api:local
+  env_file:
+    - path: .env
+      required: false
+  environment: &app-env
+    ENVIRONMENT: ${ENVIRONMENT:-development}
+    SECRET_KEY: ${SECRET_KEY:-development-secret-key-change-me-please-32b}
+    DATABASE_URL: postgresql+asyncpg://sleeptrack:sleeptrack@postgres:5432/sleeptrack
+    REDIS_URL: redis://redis:6379/0
+    EMAIL_PROVIDER: smtp
+    SMTP_HOST: mailpit
+    SMTP_PORT: "1025"
+    FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:8000}
+    CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+    # The Next.js dev server proxies API calls; trust its X-Forwarded-For so
+    # per-IP rate limits apply to real clients.
+    FORWARDED_ALLOW_IPS: "*"
+    LOG_FORMAT: ${LOG_FORMAT:-console}
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: sleeptrack
+      POSTGRES_PASSWORD: sleeptrack
+      POSTGRES_DB: sleeptrack
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sleeptrack -d sleeptrack"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:8-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    restart: unless-stopped
+
+  migrate:
+    <<: *app
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *app
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  worker:
+    <<: *app
+    command: ["arq", "app.worker.settings.WorkerSettings"]
+    healthcheck:
+      test: ["CMD", "arq", "--check", "app.worker.settings.WorkerSettings"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+
+volumes:
+  pgdata:
+  redisdata:
