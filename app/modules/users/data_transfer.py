@@ -42,7 +42,8 @@ def sessions_to_csv(rows: list[dict[str, Any]]) -> str:
 
 def _csv_value(value: object) -> object:
     if isinstance(value, list):
-        return ";".join(str(v) for v in value)
+        # Joined first: a spreadsheet only evaluates what the cell starts with.
+        value = ";".join(str(v) for v in value)
     if value is None:
         return ""
     if isinstance(value, str) and value[:1] in {"=", "+", "-", "@"} and not _looks_numeric(value):
@@ -96,7 +97,7 @@ def parse_import_row(index: int, row: dict[str, str | None], tz: str) -> ParsedR
     if quality_raw:
         try:
             quality = int(float(quality_raw))
-        except ValueError as exc:
+        except (ValueError, OverflowError) as exc:
             raise RowError(
                 f"quality must be a number between 1 and 5, got '{quality_raw}'"
             ) from exc
@@ -110,9 +111,13 @@ def parse_import_row(index: int, row: dict[str, str | None], tz: str) -> ParsedR
     tags_raw = row.get("tags") or ""
     for separator in TAG_SEPARATORS[1:]:
         tags_raw = tags_raw.replace(separator, TAG_SEPARATORS[0])
-    tags = list(
-        dict.fromkeys(t.strip()[:50] for t in tags_raw.split(TAG_SEPARATORS[0]) if t.strip())
-    )
+    # Tag names are unique case-insensitively, so de-duplicate the same way.
+    unique: dict[str, str] = {}
+    for raw_tag in tags_raw.split(TAG_SEPARATORS[0]):
+        name = raw_tag.strip()[:50]
+        if name:
+            unique.setdefault(name.casefold(), name)
+    tags = list(unique.values())
     return ParsedRow(index, started_at, ended_at, quality, notes, tags)
 
 
