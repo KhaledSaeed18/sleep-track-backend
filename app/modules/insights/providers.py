@@ -56,7 +56,8 @@ def _signed_duration(minutes: float) -> str:
 
 
 def _slug(value: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+    # Unicode-aware so names such as Arabic tags keep distinct, stable ids.
+    return re.sub(r"[\W_]+", "-", value.casefold()).strip("-")
 
 
 Rule = Callable[[InsightContext], Iterable[Insight]]
@@ -347,7 +348,7 @@ def _tag_impacts(ctx: InsightContext) -> Iterable[Insight]:
         if impact.nights_with < MIN_TAG_SAMPLE or nights - impact.nights_with < MIN_TAG_SAMPLE:
             continue
         name = impact.tag.name
-        slug = _slug(name)
+        slug = _slug(name) or str(impact.tag.id)
         q_impact = impact.quality_impact
         if q_impact is not None and abs(q_impact) >= 0.4:
             negative = q_impact < 0
