@@ -50,12 +50,28 @@ class SmtpEmailProvider:
 
 
 class ConsoleEmailProvider:
-    """Logs emails instead of sending them; the default for local development."""
+    """Logs emails instead of sending them; the default for local development.
+
+    Bodies carry single-use links (password reset, email verification), so they
+    are only logged when ``include_body`` is set, which production never does:
+    shipping those tokens to a log pipeline would hand out account access.
+    """
 
     name = "console"
 
+    def __init__(self, *, include_body: bool = True) -> None:
+        self._include_body = include_body
+
     async def send(self, message: EmailMessage) -> None:
-        logger.info("email_console", to=message.to, subject=message.subject, body=message.text)
+        if self._include_body:
+            logger.info("email_console", to=message.to, subject=message.subject, body=message.text)
+        else:
+            logger.warning(
+                "email_console_not_delivered",
+                to=message.to,
+                subject=message.subject,
+                reason="console provider in production; body withheld",
+            )
 
 
 class MemoryEmailProvider:
@@ -77,4 +93,4 @@ def build_email_provider(settings: Settings) -> EmailProvider:
         case "memory":
             return MemoryEmailProvider()
         case _:
-            return ConsoleEmailProvider()
+            return ConsoleEmailProvider(include_body=not settings.is_production)

@@ -79,6 +79,8 @@ class RecordingLogger:
     def info(self, event: str, **fields: Any) -> None:
         self.records.append((event, fields))
 
+    warning = info
+
 
 # =============================================================================== renderer
 def test_every_template_has_test_context() -> None:
@@ -195,6 +197,26 @@ async def test_console_provider_logs(monkeypatch: pytest.MonkeyPatch) -> None:
             {"to": "ada@example.com", "subject": "Reset your SleepTrack password", "body": "Hello"},
         )
     ]
+
+
+async def test_console_provider_withholds_body_in_production(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reset and verification links must not end up in production logs."""
+    recorder = RecordingLogger()
+    monkeypatch.setattr(providers, "logger", recorder)
+    settings = make_settings(
+        environment="production",
+        secret_key=SecretStr("a-production-secret-key-with-more-than-32-characters"),
+        cors_origins="https://app.example.com",
+        email_provider="console",
+    )
+    await build_email_provider(settings).send(MESSAGE)
+    assert len(recorder.records) == 1
+    event, fields = recorder.records[0]
+    assert event == "email_console_not_delivered"
+    assert "body" not in fields
+    assert "Hello" not in str(fields)
 
 
 class TestSmtpProvider:

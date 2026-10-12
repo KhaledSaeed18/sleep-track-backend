@@ -79,6 +79,11 @@ class TestProductionValidation:
     def test_console_email_allowed(self) -> None:
         assert production(email_provider="console").email_provider == "console"
 
+    def test_insecure_cookies_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="COOKIE_SECURE cannot be disabled"):
+            production(cookie_secure=False)
+        assert production(cookie_secure=True).secure_cookies is True
+
     @pytest.mark.parametrize("environment", ["development", "test", "staging"])
     def test_other_environments_are_lenient(self, environment: str) -> None:
         settings = make_settings(

@@ -144,6 +144,8 @@ class Settings(BaseSettings):
                 raise ValueError("CORS_ORIGINS cannot contain '*' in production")
             if self.email_provider == "memory":
                 raise ValueError("EMAIL_PROVIDER=memory is only for tests")
+            if self.cookie_secure is False:
+                raise ValueError("COOKIE_SECURE cannot be disabled in production")
         return self
 
     # ------------------------------------------------------------------ derived
