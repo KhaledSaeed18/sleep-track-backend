@@ -6,8 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [2.0.0] - 2026-10-12
 
-A ground-up rewrite. The v1 API is not compatible with v2; see `CONTRACT.md` shared with the
-frontend for the new contract.
+A ground-up rewrite. The v1 API is not compatible with v2; the new contract is the OpenAPI
+schema in [`docs/openapi.json`](docs/openapi.json), which the frontend generates its types from.
 
 ### Added
 - FastAPI application factory with lifespan-managed resources, versioned `/api/v1` routes and clean
