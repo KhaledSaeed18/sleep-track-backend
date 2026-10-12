@@ -107,7 +107,7 @@ async def seed() -> None:
             is_email_verified=True,
             date_of_birth=date(1998, 5, 1),
         )
-        demo.created_at = utcnow() - timedelta(days=125)
+        demo.created_at = utcnow() - timedelta(days=135)
         demo_goal = SleepGoal(
             user_id=demo.id,
             target_duration_minutes=480,
@@ -117,7 +117,7 @@ async def seed() -> None:
         )
         session.add(demo_goal)
         await session.flush()
-        demo_nights = await _add_history(session, demo, nights=120, rng=rng, goal=demo_goal)
+        demo_nights = await _add_history(session, demo, nights=130, rng=rng, goal=demo_goal)
 
         admin = await provision_user(
             session,
