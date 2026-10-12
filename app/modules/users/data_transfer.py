@@ -109,6 +109,8 @@ def parse_import_row(index: int, row: dict[str, str | None], tz: str) -> ParsedR
         raise RowError("notes must be at most 2000 characters")
 
     tags_raw = row.get("tags") or ""
+    if "\x00" in (notes or "") or "\x00" in tags_raw:
+        raise RowError("notes and tags must not contain NUL characters")
     for separator in TAG_SEPARATORS[1:]:
         tags_raw = tags_raw.replace(separator, TAG_SEPARATORS[0])
     # Tag names are unique case-insensitively, so de-duplicate the same way.
@@ -121,8 +123,16 @@ def parse_import_row(index: int, row: dict[str, str | None], tz: str) -> ParsedR
     return ParsedRow(index, started_at, ended_at, quality, notes, tags)
 
 
+class CsvFormatError(ValueError):
+    """The file could not be parsed as CSV at all."""
+
+
 def read_csv(content: str) -> tuple[list[str], list[dict[str, str | None]]]:
     reader = csv.DictReader(io.StringIO(content))
-    header = [name.strip().lower() for name in (reader.fieldnames or [])]
-    reader.fieldnames = header
-    return header, list(reader)
+    try:
+        header = [name.strip().lower() for name in (reader.fieldnames or [])]
+        reader.fieldnames = header
+        return header, list(reader)
+    except csv.Error as exc:
+        # e.g. a field above the csv module's size limit.
+        raise CsvFormatError(f"line {reader.line_num}: {exc}") from exc

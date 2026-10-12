@@ -281,6 +281,12 @@ async def test_import_csv(account: Account) -> None:
         (b"start,end\n1,2", "text/csv", "header must include"),
         (b"\xff\xfe\x00bad", "text/csv", "UTF-8"),
         (b"started_at,ended_at\n", "image/png", "CSV"),
+        (
+            b"started_at,ended_at,notes\n2026-01-01T22:00:00Z,2026-01-02T06:00:00Z,"
+            + b"a" * 200_000,
+            "text/csv",
+            "not valid CSV",
+        ),
     ],
 )
 async def test_import_rejects_bad_files(
@@ -291,6 +297,23 @@ async def test_import_rejects_bad_files(
     )
     assert response.status_code == 422
     assert fragment in response.json()["errors"][0]["message"]
+
+
+async def test_import_reports_nul_characters_per_row(account: Account) -> None:
+    content = (
+        "started_at,ended_at,notes,tags\n"
+        "2026-03-01T22:00:00Z,2026-03-02T06:00:00Z,bad\x00note,\n"
+        "2026-03-02T22:00:00Z,2026-03-03T06:00:00Z,,Bad\x00Tag\n"
+        "2026-03-03T22:00:00Z,2026-03-04T06:00:00Z,fine,\n"
+    )
+    response = await account.post(
+        f"{API}/users/me/import", files={"file": ("x.csv", content.encode(), "text/csv")}
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["imported"] == 1
+    assert [error["row"] for error in body["errors"]] == [2, 3]
+    assert all("NUL" in error["message"] for error in body["errors"])
 
 
 async def test_import_row_limit(account: Account, monkeypatch: pytest.MonkeyPatch) -> None:

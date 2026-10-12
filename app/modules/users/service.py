@@ -28,6 +28,7 @@ from app.modules.tags.models import Tag
 from app.modules.tags.repository import TagRepository
 from app.modules.users.data_transfer import (
     IMPORT_REQUIRED_COLUMNS,
+    CsvFormatError,
     ParsedRow,
     RowError,
     parse_import_row,
@@ -282,7 +283,10 @@ class UserService:
     async def import_csv(
         self, user: User, content: str, *, max_rows: int, client: ClientInfo
     ) -> ImportResult:
-        header, rows = read_csv(content)
+        try:
+            header, rows = read_csv(content)
+        except CsvFormatError as exc:
+            raise ValidationFailedError.for_field("file", f"is not valid CSV ({exc})") from exc
         missing = [column for column in IMPORT_REQUIRED_COLUMNS if column not in header]
         if missing:
             raise ValidationFailedError.for_field(
