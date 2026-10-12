@@ -9,6 +9,7 @@ from app.core.errors import ForbiddenError, problem_responses
 from app.core.rate_limit import RateLimit, RateLimiterDep
 from app.db.session import DbSession
 from app.modules.analytics.cache import AnalyticsCacheDep
+from app.modules.analytics.service import ensure_supported_date
 from app.modules.auth.dependencies import CurrentUser
 from app.modules.auth.schemas import MessageResponse
 from app.modules.reports.schemas import WeeklyReport, WeeklyReportEmailRequest
@@ -38,6 +39,7 @@ async def get_weekly_report(
         Query(description="First day of the week; defaults to the last full week"),
     ] = None,
 ) -> WeeklyReport:
+    ensure_supported_date(week_start, "week_start")
     return await service.weekly(user, week_start)
 
 
@@ -57,6 +59,7 @@ async def email_weekly_report(
     """Queues a background job that renders the report and emails it."""
     if user.is_demo:
         raise ForbiddenError("Demo accounts can't receive emails.")
+    ensure_supported_date(data.week_start if data else None, "week_start")
     await limiter.enforce(f"report-email:user:{user.id}", EMAIL_REPORT_LIMIT)
     week_start = (data.week_start if data else None) or service.default_week_start(user)
     await queue.enqueue(

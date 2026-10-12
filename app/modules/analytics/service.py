@@ -30,6 +30,18 @@ from app.modules.users.models import User
 
 DEFAULT_RANGE_DAYS = 30
 MAX_RANGE_DAYS = 400
+# Outer bounds for any requested date. Ranges are shifted backwards for the
+# previous-period comparison, which overflows near ``date.min``/``date.max``.
+EARLIEST_DATE = date(1900, 1, 1)
+LATEST_DATE = date(2999, 12, 31)
+
+
+def ensure_supported_date(value: date | None, field: str) -> None:
+    if value is not None and not EARLIEST_DATE <= value <= LATEST_DATE:
+        raise ValidationFailedError.for_field(
+            field, f"must be between {EARLIEST_DATE} and {LATEST_DATE}"
+        )
+
 
 _OVERVIEW = TypeAdapter(AnalyticsOverview)
 _DAILY = TypeAdapter(list[DailyPoint])
@@ -45,8 +57,10 @@ class RangeQuery:
     date_to: date | None
 
     def resolve(self, tz: str) -> tuple[date, date]:
+        ensure_supported_date(self.date_from, "from")
+        ensure_supported_date(self.date_to, "to")
         end = self.date_to or local_today(tz)
-        start = self.date_from or end - timedelta(days=DEFAULT_RANGE_DAYS - 1)
+        start = self.date_from or max(EARLIEST_DATE, end - timedelta(days=DEFAULT_RANGE_DAYS - 1))
         if start > end:
             raise ValidationFailedError.for_field("from", "must be on or before 'to'")
         if (end - start).days + 1 > MAX_RANGE_DAYS:

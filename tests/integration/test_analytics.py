@@ -202,12 +202,34 @@ async def test_chronotype_with_more_data(week: Account) -> None:
         ("from=2026-06-07&to=2026-06-01", "from"),
         ("from=2025-01-01&to=2026-06-01", "from"),
         ("from=junk", "from"),
+        ("from=0001-01-01&to=0001-01-05", "from"),
+        ("to=0001-01-05", "to"),
+        ("from=9999-12-01&to=9999-12-31", "from"),
     ],
 )
 async def test_range_validation(account: Account, query: str, field: str) -> None:
     response = await account.get(f"{API}/analytics/overview?{query}")
     assert response.status_code == 422
     assert response.json()["errors"][0]["field"] == field
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/analytics/daily?from=0001-01-01&to=0001-01-02",
+        "/insights?from=0001-01-02&to=0001-01-03",
+        "/reports/weekly?week_start=9999-12-30",
+        "/reports/weekly?week_start=0001-01-01",
+    ],
+)
+async def test_extreme_dates_are_rejected_not_overflowed(account: Account, path: str) -> None:
+    response = await account.get(f"{API}{path}")
+    assert response.status_code == 422, response.text
+
+
+async def test_weekly_report_email_rejects_extreme_week(account: Account) -> None:
+    response = await account.post(f"{API}/reports/weekly/email", json={"week_start": "9999-12-30"})
+    assert response.status_code == 422
 
 
 async def test_cache_is_invalidated_by_writes(week: Account, app: FastAPI) -> None:
