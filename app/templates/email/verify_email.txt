@@ -1,0 +1,7 @@
+Hi {{ first_name }},
+
+Welcome to {{ app_name }}! Confirm your email address by opening the link below:
+
+{{ link }}
+
+This link expires in {{ expires_hours }} hours. If you didn't create an account, ignore this email.

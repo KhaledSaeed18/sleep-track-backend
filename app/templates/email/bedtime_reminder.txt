@@ -1,0 +1,7 @@
+Hi {{ first_name }},
+
+Your target bedtime is {{ bedtime }}, about {{ lead_minutes }} minutes from now. A good moment to dim the lights, put the phone away and start winding down.
+
+Start the sleep timer: {{ frontend_url }}/sleep
+
+You can turn these reminders off in your notification settings.

@@ -1,0 +1,16 @@
+Hi {{ first_name }},
+
+Here is how you slept during {{ week_label }}.
+
+{% for stat in stats %}
+- {{ stat.label }}: {{ stat.value }}
+{% endfor %}
+{% if insights %}
+
+Highlights
+{% for insight in insights %}
+- {{ insight.title }}: {{ insight.message }}
+{% endfor %}
+{% endif %}
+
+Open the full report: {{ frontend_url }}/reports

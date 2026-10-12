@@ -1,4 +1,157 @@
-[tool.aerich]
-tortoise_orm = "app.config.TORTOISE_ORM"
-location = "./migrations"
-src_folder = "./."
+[project]
+name = "sleeptrack-api"
+version = "2.0.0"
+description = "SleepTrack API: sleep logging, analytics and insights service built on FastAPI."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Khaled Saeed" }]
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "fastapi>=0.143.0",
+    "uvicorn[standard]>=0.54.0",
+    "pydantic[email]>=2.14.1",
+    "pydantic-settings>=2.15.0",
+    "sqlalchemy[asyncio]>=2.1.4",
+    "asyncpg>=0.32.0",
+    "alembic>=1.20.0",
+    "redis>=5.3,<6",  # capped by arq
+    "arq>=0.28.0",
+    "pyjwt>=2.15.1",
+    "pwdlib[argon2]>=0.3.1",
+    "structlog>=26.1.0",
+    "orjson>=3.13.0",
+    "prometheus-fastapi-instrumentator>=8.1.0",
+    "aiosmtplib>=5.1.3",
+    "jinja2>=3.1.6",
+    "httpx>=0.28.1",
+    "python-multipart>=0.0.32",
+    "tzdata>=2025.2",
+]
+
+[project.optional-dependencies]
+observability = [
+    "sentry-sdk[fastapi]>=2.71.0",
+    "opentelemetry-sdk>=1.45.1",
+    "opentelemetry-exporter-otlp-proto-http>=1.45.1",
+    "opentelemetry-instrumentation-fastapi>=0.66b1",
+    "opentelemetry-instrumentation-sqlalchemy>=0.66b1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "pytest-cov>=7.1.0",
+    "asgi-lifespan>=2.1.0",
+    "fakeredis[lua]>=2.39.0",
+    "ruff>=0.17.0",
+    "mypy>=2.4.0",
+    "pre-commit>=4.6.2",
+]
+
+[tool.uv]
+package = false
+default-groups = ["dev"]
+
+# --------------------------------------------------------------------------- ruff
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+src = ["."]
+extend-exclude = ["migrations/versions"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F", "I", "N", "UP", "B", "A", "C4", "DTZ", "T10", "EM", "ISC", "ICN",
+    "LOG", "G", "PIE", "T20", "PT", "Q", "RSE", "RET", "SLF", "SIM", "TID", "TC",
+    "ARG", "PTH", "ERA", "PGH", "PL", "TRY", "FLY", "PERF", "FURB", "RUF", "S", "ASYNC",
+    "FAST",
+]
+ignore = [
+    "PLR0913",  # services and DTO constructors legitimately take many arguments
+    "PLR2004",  # magic values are clearer inline in analytics formulas
+    "TRY003",   # domain exceptions carry contextual messages
+    "EM101",
+    "EM102",
+    "ISC001",   # conflicts with the formatter
+    "TC001",
+    "TC002",
+    "TC003",    # runtime type imports are needed by FastAPI/Pydantic
+    "S311",     # non-cryptographic randomness is only used for synthetic data
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "S101", "S105", "S106", "PLR2004", "ARG001", "SLF001", "PLR0915", "PLC0415", "FLY002",
+]
+"app/scripts/**" = ["T201"]
+"migrations/**" = ["INP001"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "tests"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = [
+    "fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Body", "fastapi.Header",
+    "fastapi.Cookie", "fastapi.File", "fastapi.Form", "fastapi.Security",
+]
+
+[tool.ruff.lint.pylint]
+max-args = 8
+max-returns = 8
+max-branches = 15
+
+[tool.ruff.format]
+docstring-code-format = true
+
+# --------------------------------------------------------------------------- mypy
+[tool.mypy]
+python_version = "3.13"
+strict = true
+plugins = ["pydantic.mypy"]
+warn_unreachable = true
+pretty = true
+files = ["app", "tests", "migrations"]
+exclude = ["migrations/versions/"]
+
+[[tool.mypy.overrides]]
+module = [
+    "arq.*", "prometheus_fastapi_instrumentator.*", "fakeredis.*", "asgi_lifespan.*", "asyncpg.*",
+]
+ignore_missing_imports = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+# --------------------------------------------------------------------------- pytest
+[tool.pytest.ini_options]
+minversion = "9.0"
+testpaths = ["tests"]
+addopts = ["-ra", "--strict-markers", "--strict-config"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+markers = [
+    "integration: tests that need Postgres and Redis",
+]
+filterwarnings = ["error::DeprecationWarning:app.*"]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+# SQLAlchemy's asyncio layer runs ORM code inside greenlets.
+concurrency = ["greenlet", "thread"]
+omit = ["app/scripts/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "@overload",
+    "\\.\\.\\.",
+]

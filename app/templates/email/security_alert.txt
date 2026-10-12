@@ -1,0 +1,5 @@
+Hi {{ first_name }},
+
+{{ message }}
+
+As a precaution we signed out the affected device. If you don't recognise this activity, reset your password ({{ frontend_url }}/auth/forgot-password) and review your active sessions ({{ frontend_url }}/settings/security).
