@@ -44,7 +44,7 @@ dev = [
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
     "asgi-lifespan>=2.1.0",
-    "fakeredis>=2.39.0",
+    "fakeredis[lua]>=2.39.0",
     "ruff>=0.17.0",
     "mypy>=2.4.0",
     "pre-commit>=4.6.2",
@@ -82,7 +82,9 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "S105", "S106", "PLR2004", "ARG001", "SLF001", "PLR0915"]
+"tests/**" = [
+    "S101", "S105", "S106", "PLR2004", "ARG001", "SLF001", "PLR0915", "PLC0415", "FLY002",
+]
 "app/scripts/**" = ["T201"]
 "migrations/**" = ["INP001"]
 
@@ -114,7 +116,9 @@ files = ["app", "tests", "migrations"]
 exclude = ["migrations/versions/"]
 
 [[tool.mypy.overrides]]
-module = ["arq.*", "prometheus_fastapi_instrumentator.*", "fakeredis.*", "asgi_lifespan.*"]
+module = [
+    "arq.*", "prometheus_fastapi_instrumentator.*", "fakeredis.*", "asgi_lifespan.*", "asyncpg.*",
+]
 ignore_missing_imports = true
 
 [tool.pydantic-mypy]
@@ -138,6 +142,8 @@ filterwarnings = ["error::DeprecationWarning:app.*"]
 [tool.coverage.run]
 source = ["app"]
 branch = true
+# SQLAlchemy's asyncio layer runs ORM code inside greenlets.
+concurrency = ["greenlet", "thread"]
 omit = ["app/scripts/*"]
 
 [tool.coverage.report]
