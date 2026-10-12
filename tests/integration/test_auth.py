@@ -814,11 +814,15 @@ async def test_oauth_provider_failure_and_unverified_email(
     assert response.headers["location"].endswith("?error=email_unverified")
 
 
+@pytest.mark.parametrize(
+    "redirect_to",
+    ["//evil.example/steal", "/%09/evil.example", "/%0A/evil.example", "/%0D/evil.example"],
+)
 async def test_oauth_open_redirect_is_neutralised(
-    client: httpx.AsyncClient, app: FastAPI, monkeypatch: pytest.MonkeyPatch
+    client: httpx.AsyncClient, app: FastAPI, monkeypatch: pytest.MonkeyPatch, redirect_to: str
 ) -> None:
     monkeypatch.setitem(app.state.oauth._providers, "google", FakeGoogle(_google_info()))
-    start = await client.get(f"{API}/auth/oauth/google/authorize?redirect_to=//evil.example/steal")
+    start = await client.get(f"{API}/auth/oauth/google/authorize?redirect_to={redirect_to}")
     state = parse_qs(urlparse(start.headers["location"]).query)["state"][0]
     response = await client.get(f"{API}/auth/oauth/google/callback?code=abc&state={state}")
     assert response.headers["location"].endswith("next=%2Fdashboard")

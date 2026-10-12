@@ -65,8 +65,14 @@ def _auth_response(result: AuthResult, response: Response, settings: SettingsDep
 
 
 def _safe_redirect_path(value: str | None) -> str:
-    """Only same-site relative paths are allowed (prevents open redirects)."""
+    """Only same-site relative paths are allowed (prevents open redirects).
+
+    Control characters are refused too: browsers strip tabs and
+    newlines from URLs, so ``/<TAB>/evil.example`` would become ``//evil.example``.
+    """
     if not value or not value.startswith("/") or value.startswith("//") or "\\" in value:
+        return DEFAULT_REDIRECT
+    if any(ord(char) < 0x20 or ord(char) == 0x7F for char in value):
         return DEFAULT_REDIRECT
     return value[:512]
 
