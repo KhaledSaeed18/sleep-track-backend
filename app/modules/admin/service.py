@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from sqlalchemy import Date, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import noload
+from sqlalchemy.orm import raiseload
 
 from app.core.deps import ClientInfo
 from app.core.errors import ForbiddenError, NotFoundError
@@ -62,7 +62,7 @@ class AdminService:
         rows = await self.session.execute(
             select(signup_day, func.count()).where(signup_day >= series_start).group_by(signup_day)
         )
-        counts = {day: int(count) for day, count in rows.tuples()}
+        counts = {day: int(count) for day, count in rows}
         return AdminStats(
             users_total=int(users_total or 0),
             users_active_7d=int(users_active or 0),
@@ -117,12 +117,12 @@ class AdminService:
             select(User, func.coalesce(counts.c.sessions_count, 0))
             .outerjoin(counts, counts.c.user_id == User.id)
             .where(*conditions)
-            .options(noload(User.preferences))
+            .options(raiseload(User.preferences))
             .order_by(User.created_at.desc(), User.id)
             .offset(page.offset)
             .limit(page.limit)
         )
-        rows = (await self.session.execute(stmt)).tuples()
+        rows = (await self.session.execute(stmt))
         items = [self._to_admin(user, int(count)) for user, count in rows]
         return AdminUserPage.build(items, total=int(total or 0), params=page)
 

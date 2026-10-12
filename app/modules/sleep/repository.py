@@ -146,7 +146,7 @@ class SleepRepository:
             .where(sleep_session_tags.c.tag_id.in_(tag_ids))
             .group_by(sleep_session_tags.c.tag_id)
         )
-        return {tag_id: int(count) for tag_id, count in (await self.session.execute(stmt)).tuples()}
+        return {tag_id: int(count) for tag_id, count in (await self.session.execute(stmt))}
 
     async def completed_points(
         self, user_id: uuid.UUID, date_from: date, date_to: date

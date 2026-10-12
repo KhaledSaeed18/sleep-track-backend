@@ -25,7 +25,7 @@ class TagRepository:
             .order_by(func.lower(Tag.name))
         )
         rows = await self.session.execute(stmt)
-        return [(tag, int(count)) for tag, count in rows.tuples()]
+        return [(tag, int(count)) for tag, count in rows]
 
     async def usage_count(self, tag_id: uuid.UUID) -> int:
         stmt = select(func.count()).where(sleep_session_tags.c.tag_id == tag_id)
