@@ -109,6 +109,11 @@ class TimerStart(BaseModel):
 
 
 class TimerStop(SleepSessionDetails):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "example": {"quality": 4, "mood_on_wake": 4, "awakenings": 1, "tag_ids": []}
+        },
+    )
 
     ended_at: AwareDatetime | None = Field(default=None, description="Defaults to now")

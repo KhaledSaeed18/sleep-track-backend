@@ -27,7 +27,12 @@ class TagRead(BaseModel):
 
 
 class TagCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "example": {"name": "Hot room", "color": "#ef4444", "icon": "thermometer"}
+        },
+    )
 
     name: TagName
     color: HexColor = Field(examples=["#6366f1"])

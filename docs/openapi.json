@@ -4621,7 +4621,13 @@
           "target_wake_time",
           "bedtime_window_minutes"
         ],
-        "title": "GoalUpdate"
+        "title": "GoalUpdate",
+        "example": {
+          "bedtime_window_minutes": 30,
+          "target_bedtime": "23:00",
+          "target_duration_minutes": 480,
+          "target_wake_time": "07:00"
+        }
       },
       "HTTPValidationError": {
         "properties": {
@@ -5141,7 +5147,11 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "title": "PreferencesUpdate"
+        "title": "PreferencesUpdate",
+        "example": {
+          "theme": "dark",
+          "timezone": "Asia/Beirut"
+        }
       },
       "PreviousPeriod": {
         "properties": {
@@ -5998,7 +6008,12 @@
           "name",
           "color"
         ],
-        "title": "TagCreate"
+        "title": "TagCreate",
+        "example": {
+          "color": "#ef4444",
+          "icon": "thermometer",
+          "name": "Hot room"
+        }
       },
       "TagImpactRead": {
         "properties": {
@@ -6367,7 +6382,13 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "title": "TimerStop"
+        "title": "TimerStop",
+        "example": {
+          "awakenings": 1,
+          "mood_on_wake": 4,
+          "quality": 4,
+          "tag_ids": []
+        }
       },
       "TokenRequest": {
         "properties": {
@@ -6565,7 +6586,12 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "title": "UserUpdate"
+        "title": "UserUpdate",
+        "example": {
+          "date_of_birth": "1999-05-01",
+          "first_name": "Khaled",
+          "last_name": "Saeed"
+        }
       },
       "ValidationError": {
         "properties": {

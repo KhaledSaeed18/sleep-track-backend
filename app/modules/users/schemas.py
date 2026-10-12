@@ -36,7 +36,10 @@ class Preferences(BaseModel):
 
 
 class PreferencesUpdate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={"example": {"timezone": "Asia/Beirut", "theme": "dark"}},
+    )
 
     timezone: Timezone | None = None
     time_format: TimeFormat | None = None
@@ -81,7 +84,12 @@ def _validate_birth_date(value: date | None) -> date | None:
 
 
 class UserUpdate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "example": {"first_name": "Khaled", "last_name": "Saeed", "date_of_birth": "1999-05-01"}
+        },
+    )
 
     first_name: PersonName | None = None
     last_name: OptionalLastName | None = None

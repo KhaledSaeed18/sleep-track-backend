@@ -32,7 +32,17 @@ class GoalRead(BaseModel):
 
 
 class GoalUpdate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "example": {
+                "target_duration_minutes": 480,
+                "target_bedtime": "23:00",
+                "target_wake_time": "07:00",
+                "bedtime_window_minutes": 30,
+            }
+        },
+    )
 
     target_duration_minutes: int = Field(ge=180, le=900, examples=[480])
     target_bedtime: ClockTime
