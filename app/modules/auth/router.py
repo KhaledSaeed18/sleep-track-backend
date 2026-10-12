@@ -36,7 +36,7 @@ from app.modules.auth.schemas import (
     ResetPasswordRequest,
     TokenRequest,
 )
-from app.modules.auth.service import AuthResult
+from app.modules.auth.service import AuthResult, RefreshTokenRotatedError
 from app.modules.users.schemas import UserRead
 
 logger = structlog.get_logger(__name__)
@@ -134,7 +134,10 @@ async def refresh(
             instance=f"{settings.api_prefix}/auth/refresh",
             headers=exc.headers or None,
         )
-        clear_auth_cookies(failure, settings)
+        # Losing a concurrent rotation is harmless: the winning request already
+        # set new cookies, and clearing them here would sign the browser out.
+        if not isinstance(exc, RefreshTokenRotatedError):
+            clear_auth_cookies(failure, settings)
         return failure
     return _auth_response(result, response, settings)
 

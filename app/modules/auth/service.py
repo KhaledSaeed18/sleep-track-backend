@@ -89,6 +89,14 @@ class ActionTokenExpiredError(AppError):
     title = "Link expired"
 
 
+class RefreshTokenRotatedError(TokenInvalidError):
+    """A just-rotated refresh token was presented again within the grace window.
+
+    The concurrent request that won the rotation has already set fresh cookies,
+    so the response to this one must not clear them.
+    """
+
+
 @dataclass(frozen=True, slots=True)
 class AuthResult:
     user: User
@@ -329,7 +337,7 @@ class AuthService:
         if now - token.used_at <= grace:
             # Most likely two tabs refreshing at once: the winner already set the
             # new cookie, so reject without punishing the user.
-            raise TokenInvalidError("Refresh token was already rotated.")
+            raise RefreshTokenRotatedError("Refresh token was already rotated.")
 
         auth_session.revoked_at = now
         auth_session.revoked_reason = "token_reuse"

@@ -324,9 +324,13 @@ async def test_refresh_reuse_within_grace_does_not_revoke(
     await replay.aclose()
     assert response.status_code == 401
     assert response.json()["code"] == "token_invalid"
+    # The winning tab already holds fresh cookies; the loser must not clear them.
+    assert response.headers.get_list("set-cookie") == []
     session = await db.scalar(select(AuthSession))
     assert session is not None
     assert session.revoked_at is None
+    again = await account.client.post(f"{API}/auth/refresh", headers=account.csrf_headers())
+    assert again.status_code == 200
 
 
 async def test_refresh_reuse_after_grace_revokes_family(
