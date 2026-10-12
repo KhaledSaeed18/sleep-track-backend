@@ -16,9 +16,11 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy.exc import DBAPIError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.context import get_request_id
+from app.db.errors import UNSTORABLE_TEXT_SQLSTATES, sqlstate
 
 PROBLEM_BASE_URL = "https://sleeptrack.app/problems/"
 PROBLEM_CONTENT_TYPE = "application/problem+json"
@@ -340,10 +342,33 @@ async def _unhandled_handler(request: Request, exc: Exception) -> JSONResponse:
     )
 
 
+async def _database_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, DBAPIError)  # noqa: S101
+    # Input PostgreSQL refuses to store (a NUL character in any text value) is a
+    # client error, not an outage.
+    if sqlstate(exc) in UNSTORABLE_TEXT_SQLSTATES:
+        return problem_response(
+            request,
+            status=HTTPStatus.UNPROCESSABLE_ENTITY,
+            code="validation_error",
+            title="Validation failed",
+            detail="Text values must not contain NUL (U+0000) characters.",
+            errors=[
+                FieldError(
+                    field="__root__",
+                    message="must not contain NUL (U+0000) characters",
+                    code="invalid_character",
+                )
+            ],
+        )
+    return await _unhandled_handler(request, exc)
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(AppError, _app_error_handler)
     app.add_exception_handler(RequestValidationError, _validation_handler)
     app.add_exception_handler(StarletteHTTPException, _http_exception_handler)
+    app.add_exception_handler(DBAPIError, _database_error_handler)
     app.add_exception_handler(Exception, _unhandled_handler)
 
 

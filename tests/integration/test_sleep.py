@@ -506,3 +506,34 @@ async def test_patch_running_session(account: Account) -> None:
     assert moved.status_code == 200
     assert moved.json()["status"] == "in_progress"
     assert moved.json()["notes"] == "reading first"
+
+
+# --------------------------------------------------------------------------- NUL bytes
+@pytest.mark.parametrize(
+    ("method", "path", "payload"),
+    [
+        (
+            "POST",
+            "/sleep/sessions",
+            {
+                "started_at": "2026-06-01T22:00:00Z",
+                "ended_at": "2026-06-02T06:00:00Z",
+                "notes": "bad\u0000note",
+            },
+        ),
+        ("POST", "/tags", {"name": "x\u0000y", "color": "#aabbcc"}),
+        ("PATCH", "/users/me", {"first_name": "x\u0000y"}),
+        ("GET", "/sleep/sessions?q=a%00b", None),
+    ],
+)
+async def test_nul_characters_are_rejected_as_validation_errors(
+    account: Account, method: str, path: str, payload: dict[str, Any] | None
+) -> None:
+    """PostgreSQL cannot store U+0000; that is bad input, not a server error."""
+    response = await account.client.request(
+        method, f"{API}{path}", json=payload, headers=account.headers
+    )
+    assert response.status_code == 422, response.text
+    assert response.json()["code"] == "validation_error"
+    # The request-scoped session was rolled back and the account still works.
+    assert (await account.get(f"{API}/users/me")).status_code == 200
