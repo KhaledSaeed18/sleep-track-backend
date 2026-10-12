@@ -92,6 +92,15 @@ async def test_send_weekly_report_skips_missing_user(ctx: dict[str, Any]) -> Non
     assert result is False
 
 
+async def test_send_weekly_report_skips_unverified_address(
+    ctx: dict[str, Any], account: Account, mails: list[EmailMessage]
+) -> None:
+    mails.clear()
+    result = await tasks.send_weekly_report(ctx, user_id=account.id, week_start="2026-06-01")
+    assert result is False
+    assert mails == []
+
+
 async def _verify(db: AsyncSession, account: Account) -> None:
     await db.execute(
         text("UPDATE users SET is_email_verified = true WHERE id = :id"), {"id": account.id}

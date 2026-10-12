@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, Query, Request, status
 
-from app.core.errors import ForbiddenError, problem_responses
+from app.core.errors import EmailNotVerifiedError, ForbiddenError, problem_responses
 from app.core.rate_limit import RateLimit, RateLimiterDep
 from app.db.session import DbSession
 from app.modules.analytics.cache import AnalyticsCacheDep
@@ -59,6 +59,9 @@ async def email_weekly_report(
     """Queues a background job that renders the report and emails it."""
     if user.is_demo:
         raise ForbiddenError("Demo accounts can't receive emails.")
+    if not user.is_email_verified:
+        # Otherwise anyone could register someone else's address and mail it at will.
+        raise EmailNotVerifiedError("Verify your email address to receive reports by email.")
     ensure_supported_date(data.week_start if data else None, "week_start")
     await limiter.enforce(f"report-email:user:{user.id}", EMAIL_REPORT_LIMIT)
     week_start = (data.week_start if data else None) or service.default_week_start(user)

@@ -227,7 +227,8 @@ async def test_extreme_dates_are_rejected_not_overflowed(account: Account, path:
     assert response.status_code == 422, response.text
 
 
-async def test_weekly_report_email_rejects_extreme_week(account: Account) -> None:
+async def test_weekly_report_email_rejects_extreme_week(account: Account, app: FastAPI) -> None:
+    await _verify_email(app, account)
     response = await account.post(f"{API}/reports/weekly/email", json={"week_start": "9999-12-30"})
     assert response.status_code == 422
 
@@ -328,7 +329,18 @@ async def test_weekly_report_defaults_to_last_full_week(account: Account) -> Non
     assert sunday_report["week_start"] != report["week_start"]
 
 
-async def test_weekly_report_email(week: Account, mails: list[EmailMessage]) -> None:
+async def _verify_email(app: FastAPI, account: Account) -> None:
+    from sqlalchemy import text
+
+    async with app.state.session_factory() as session:
+        await session.execute(
+            text("UPDATE users SET is_email_verified = true WHERE id = :id"), {"id": account.id}
+        )
+        await session.commit()
+
+
+async def test_weekly_report_email(week: Account, mails: list[EmailMessage], app: FastAPI) -> None:
+    await _verify_email(app, week)
     mails.clear()
     response = await week.post(f"{API}/reports/weekly/email", json={"week_start": "2026-06-01"})
     assert response.status_code == 202
@@ -354,7 +366,19 @@ async def test_weekly_report_email_blocked_for_demo(app: FastAPI) -> None:
     assert response.status_code == 403
 
 
+async def test_weekly_report_email_requires_verified_address(
+    account: Account, mails: list[EmailMessage]
+) -> None:
+    """An unverified address may belong to someone else; don't mail it reports."""
+    mails.clear()
+    response = await account.post(f"{API}/reports/weekly/email")
+    assert response.status_code == 403
+    assert response.json()["code"] == "email_not_verified"
+    assert mails == []
+
+
 async def test_weekly_report_email_rate_limited(account: Account, app: FastAPI) -> None:
+    await _verify_email(app, account)
     app.state.settings.rate_limit_enabled = True
     statuses = [(await account.post(f"{API}/reports/weekly/email")).status_code for _ in range(6)]
     assert statuses == [202] * 5 + [429]

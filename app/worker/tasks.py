@@ -78,7 +78,7 @@ async def send_weekly_report(ctx: dict[str, Any], *, user_id: str, week_start: s
     res = resources(ctx)
     async with res.session_factory() as session:
         user = await session.get(User, uuid.UUID(user_id))
-        if user is None or not user.is_active or user.is_demo:
+        if user is None or not user.is_active or user.is_demo or not user.is_email_verified:
             return False
         service = ReportService(
             session,
