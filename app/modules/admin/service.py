@@ -122,7 +122,7 @@ class AdminService:
             .offset(page.offset)
             .limit(page.limit)
         )
-        rows = (await self.session.execute(stmt))
+        rows = await self.session.execute(stmt)
         items = [self._to_admin(user, int(count)) for user, count in rows]
         return AdminUserPage.build(items, total=int(total or 0), params=page)
 
