@@ -549,6 +549,10 @@ async def test_demo_account(client: httpx.AsyncClient, db: AsyncSession) -> None
     assert 70 <= sessions.json()["total"] <= 90
     overview = await client.get(f"{API}/analytics/overview", headers=headers)
     assert overview.json()["nights_tracked"] > 20
+    future = await db.scalar(text("SELECT count(*) FROM sleep_sessions WHERE ended_at > now()"))
+    assert future == 0
+    timer = await client.post(f"{API}/sleep/timer/start", headers=headers)
+    assert timer.status_code == 201
 
     blocked = await client.post(
         f"{API}/users/me/change-password",

@@ -15,7 +15,7 @@ from datetime import date, datetime, time, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.timeutils import get_zone, local_today
+from app.core.timeutils import get_zone, local_today, utcnow
 from app.modules.analytics.calculations import GoalTargets, sleep_score
 from app.modules.sleep.models import SleepSession, SleepSource, SleepStatus
 from app.modules.tags.models import Tag
@@ -116,8 +116,12 @@ def build_history(
     rng: random.Random,
     goal: GoalTargets | None = None,
     skip_probability: float = 0.08,
+    now: datetime | None = None,
 ) -> list[SleepSession]:
     goal = goal or GoalTargets()
+    # "Last night" may still be in progress shortly after local midnight; never
+    # fabricate sessions that end in the future (they would block the timer).
+    cutoff = now or utcnow()
     zone = get_zone(timezone)
     sessions: list[SleepSession] = []
     start = end - timedelta(days=nights - 1)
@@ -139,6 +143,8 @@ def build_history(
         local_start = datetime.combine(night, time(0, 0), tzinfo=zone) + timedelta(minutes=bedtime)
         started_at = local_start.astimezone(get_zone("UTC"))
         ended_at = started_at + timedelta(minutes=duration)
+        if ended_at > cutoff:
+            continue
         bedtime_minutes = (local_start.hour * 60 + local_start.minute) % 1440
         sessions.append(
             SleepSession(
