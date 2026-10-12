@@ -89,6 +89,9 @@ async def _add_history(
 
 async def seed() -> None:
     settings = get_settings()
+    if settings.is_production:
+        # The showcase credentials are public; seeding them would hand out an admin.
+        raise SystemExit("Refusing to seed a production database (documented credentials).")
     hasher = get_password_hasher(settings)
     engine = create_engine(settings)
     factory = create_session_factory(engine)

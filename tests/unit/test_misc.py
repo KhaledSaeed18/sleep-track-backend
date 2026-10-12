@@ -263,3 +263,27 @@ def test_report_email_context_renders() -> None:
     assert "Average sleep: 7h 30m" in rendered.text
     assert "Title 2" in rendered.html
     assert "Title 3" not in rendered.html
+
+
+async def test_seed_refuses_production(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Seeding creates admin@sleeptrack.app with a published password."""
+    from pydantic import SecretStr
+
+    from app.core.config import Environment, Settings
+    from app.scripts import seed
+
+    production = Settings(
+        _env_file=None,
+        environment=Environment.PRODUCTION,
+        secret_key=SecretStr("a-production-secret-key-with-more-than-32-characters"),
+        cors_origins=["https://app.example.com"],
+        email_provider="smtp",
+    )
+    monkeypatch.setattr(seed, "get_settings", lambda: production)
+
+    def no_engine(*_: object, **__: object) -> None:
+        raise AssertionError("must not connect to the database")
+
+    monkeypatch.setattr(seed, "create_engine", no_engine)
+    with pytest.raises(SystemExit, match="production"):
+        await seed.seed()
