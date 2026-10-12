@@ -93,4 +93,7 @@ def instrument_engine(engine: AsyncEngine, settings: Settings) -> None:
         )
     except ImportError:
         return
-    SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
+    # The instrumentation's declared range stops at SQLAlchemy < 2.1 although the
+    # engine event API it hooks into is unchanged; skip the guard rather than
+    # silently losing database spans.
+    SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine, skip_dep_check=True)
