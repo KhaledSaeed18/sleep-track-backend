@@ -83,8 +83,10 @@ def _validated_row(
     try:
         validate_window(parsed.started_at, parsed.ended_at, now)
     except ValidationFailedError as exc:
-        message = exc.errors[0].message if exc.errors else "invalid time range"
-        raise RowError(f"ended_at {message}") from exc
+        error = exc.errors[0] if exc.errors else None
+        field = error.field if error else "ended_at"
+        message = error.message if error else "invalid time range"
+        raise RowError(f"{field} {message}") from exc
     if index.overlaps(parsed.started_at, parsed.ended_at):
         raise RowError("overlaps an existing session")
     return parsed

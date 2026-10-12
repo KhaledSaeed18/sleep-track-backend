@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Sequence
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,6 +39,8 @@ from app.modules.users.models import User
 MIN_DURATION = timedelta(minutes=10)
 MAX_DURATION = timedelta(hours=20)
 FUTURE_SKEW = timedelta(seconds=60)
+# Far-past instants overflow local-date conversion (year 1 minus an offset).
+EARLIEST_START = datetime(1900, 1, 1, tzinfo=UTC)
 
 _DETAIL_FIELDS = ("quality", "mood_on_wake", "sleep_latency_minutes", "awakenings", "notes")
 
@@ -49,6 +51,7 @@ def duration_minutes(start: datetime, end: datetime) -> int:
 
 def validate_window(start: datetime, end: datetime, now: datetime) -> None:
     """Domain rules from the contract: 10 min - 20 h, not in the future."""
+    _validate_not_too_early(start)
     if end <= start:
         raise ValidationFailedError.for_field("ended_at", "must be after started_at")
     if end - start < MIN_DURATION:
@@ -59,7 +62,13 @@ def validate_window(start: datetime, end: datetime, now: datetime) -> None:
         raise ValidationFailedError.for_field("ended_at", "cannot be in the future")
 
 
+def _validate_not_too_early(start: datetime) -> None:
+    if start < EARLIEST_START:
+        raise ValidationFailedError.for_field("started_at", "must be in 1900 or later")
+
+
 def validate_start(start: datetime, now: datetime) -> None:
+    _validate_not_too_early(start)
     if start > now + FUTURE_SKEW:
         raise ValidationFailedError.for_field("started_at", "cannot be in the future")
 

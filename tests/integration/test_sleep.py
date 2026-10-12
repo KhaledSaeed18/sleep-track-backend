@@ -537,3 +537,29 @@ async def test_nul_characters_are_rejected_as_validation_errors(
     assert response.json()["code"] == "validation_error"
     # The request-scoped session was rolled back and the account still works.
     assert (await account.get(f"{API}/users/me")).status_code == 200
+
+
+async def test_far_past_timestamps_are_rejected(account: Account) -> None:
+    """Year-1 instants overflow local-date conversion; they must be a 422, not a 500."""
+    for start, end in [
+        ("0001-01-01T01:00:00Z", "0001-01-01T09:00:00Z"),
+        ("0001-01-01T01:00:00+05:00", "0001-01-01T09:00:00+05:00"),
+    ]:
+        response = await account.post(
+            f"{API}/sleep/sessions", json={"started_at": start, "ended_at": end}
+        )
+        assert response.status_code == 422, response.text
+        assert response.json()["errors"][0]["field"] == "started_at"
+
+    created = await create(account, "2026-05-01T22:00:00Z", "2026-05-02T06:00:00Z")
+    patched = await account.patch(
+        f"{API}/sleep/sessions/{created['id']}", json={"started_at": "0001-01-01T01:00:00+05:00"}
+    )
+    assert patched.status_code == 422
+
+    content = "started_at,ended_at\n0001-01-01T01:00:00+05:00,0001-01-01T09:00:00+05:00\n"
+    imported = await account.post(
+        f"{API}/users/me/import", files={"file": ("x.csv", content.encode(), "text/csv")}
+    )
+    assert imported.status_code == 200, imported.text
+    assert imported.json()["errors"][0]["message"].startswith("started_at")
