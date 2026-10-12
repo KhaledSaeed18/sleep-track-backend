@@ -18,7 +18,7 @@ x-app: &app
     FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
     PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:8000}
     CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
-    # The Next.js dev server proxies API calls; trust its X-Forwarded-For so
+    # The Next.js app proxies API calls; trust its X-Forwarded-For so
     # per-IP rate limits apply to real clients.
     FORWARDED_ALLOW_IPS: "*"
     LOG_FORMAT: ${LOG_FORMAT:-console}

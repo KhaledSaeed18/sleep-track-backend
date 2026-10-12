@@ -22,7 +22,7 @@ that runs against real Postgres and Redis.
 
 - **API docs:** `http://localhost:8000/api/v1/docs` (Swagger) and `/api/v1/redoc`
 - **OpenAPI:** [`docs/openapi.json`](docs/openapi.json), also served at `/api/v1/openapi.json`
-- **Frontend:** a Next.js app consumes this API through same-origin rewrites
+- **Frontend:** [sleep-track-frontend](https://github.com/KhaledSaeed18/sleep-track-frontend), a Next.js app that reaches this API through a same-origin proxy
 
 ## Contents
 
@@ -83,7 +83,7 @@ that runs against real Postgres and Redis.
 
 ```mermaid
 flowchart LR
-    browser([Browser]) --> next[Next.js frontend<br/>same-origin /api rewrites]
+    browser([Browser]) --> next[Next.js frontend<br/>same-origin /api proxy]
     next -->|HTTP JSON| api
 
     subgraph backend [SleepTrack backend]

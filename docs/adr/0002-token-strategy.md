@@ -5,7 +5,7 @@
 
 ## Context
 
-The frontend is a Next.js app that talks to the API through same-origin rewrites. We need sessions
+The frontend is a Next.js app that talks to the API through a same-origin proxy. We need sessions
 that survive page reloads, support "remember me", can be revoked per device, and limit the damage of
 a stolen token, without putting long-lived credentials where JavaScript can read them.
 

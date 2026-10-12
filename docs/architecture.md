@@ -8,7 +8,7 @@ trade-offs are recorded separately as [ADRs](adr/).
 ```mermaid
 flowchart TB
     subgraph clients [Clients]
-        web[Next.js app<br/>same-origin rewrites]
+        web[Next.js app<br/>same-origin /api proxy]
         tools[curl / generated clients]
     end
 
