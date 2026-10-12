@@ -18,6 +18,17 @@ TOKEN_URL = "https://oauth2.googleapis.com/token"  # noqa: S105 - endpoint URL
 USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
 
 
+def _json(response: httpx.Response, code: str) -> dict[str, Any]:
+    """Decode a JSON object body, treating anything else as unusable provider data."""
+    try:
+        data = response.json()
+    except ValueError as exc:
+        raise OAuthError(code, "Google returned an unexpected response.") from exc
+    if not isinstance(data, dict):
+        raise OAuthError(code, "Google returned an unexpected response.")
+    return data
+
+
 class GoogleOAuthProvider:
     id = "google"
     name = "Google"
@@ -73,7 +84,7 @@ class GoogleOAuthProvider:
                     raise OAuthError(
                         "exchange_failed", "Could not exchange the authorization code."
                     )
-                access_token = token_response.json().get("access_token")
+                access_token = _json(token_response, "exchange_failed").get("access_token")
                 if not access_token:
                     raise OAuthError("exchange_failed", "Provider returned no access token.")
                 userinfo_response = await client.get(
@@ -83,7 +94,7 @@ class GoogleOAuthProvider:
                 raise OAuthError("provider_unavailable", "Google is unreachable.") from exc
         if userinfo_response.status_code != 200:
             raise OAuthError("userinfo_failed", "Could not load the Google profile.")
-        return self._parse_user(userinfo_response.json())
+        return self._parse_user(_json(userinfo_response, "userinfo_failed"))
 
     def _parse_user(self, data: dict[str, Any]) -> OAuthUserInfo:
         subject = data.get("sub")
