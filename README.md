@@ -7,6 +7,7 @@
 ![Redis](https://img.shields.io/badge/Redis-8-DC382D?logo=redis&logoColor=white)
 ![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)
 ![mypy](https://img.shields.io/badge/mypy-strict-2A6DB2)
+![Coverage](https://img.shields.io/badge/coverage-98%25-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 SleepTrack is a sleep journal with an analytics engine behind it. You log nights (by hand, with a
@@ -259,6 +260,8 @@ make check       # all of the above
   detection, CSRF failures, rate limits, OAuth state handling, cross-user isolation and the jobs.
 - **Unit tests** cover the analytics math, insight rules, security primitives, middleware, settings
   validation and integrations with fakeredis and mocked HTTP.
+- Current suite: about 1,000 tests (roughly 200 integration, 800 unit) running in under 30 seconds,
+  with 98 % line and branch coverage.
 - CI enforces ruff, mypy strict, migrations that round-trip and match the models, an up-to-date OpenAPI
   schema, a coverage floor of 85 % and a Docker build.
 
