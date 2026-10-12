@@ -106,7 +106,8 @@ def circular_mean_minutes(values: Sequence[float]) -> float | None:
     if length < 1e-9:  # perfectly balanced around the clock
         return None
     angle = math.atan2(sin_sum, cos_sum) % (2 * math.pi)
-    return angle / (2 * math.pi) * MINUTES_PER_DAY
+    # The outer modulo folds floating-point results of exactly 1440 back to 0.
+    return (angle / (2 * math.pi) * MINUTES_PER_DAY) % MINUTES_PER_DAY
 
 
 def circular_std_minutes(values: Sequence[float]) -> float | None:
@@ -266,7 +267,7 @@ def streaks(
     """(current, longest) runs of consecutive nights meeting the duration goal.
 
     Tonight cannot be logged yet, so an unlogged night at ``end`` is skipped
-    when ``end`` is today or later instead of breaking the current streak.
+    when ``end`` is today or yesterday instead of breaking the current streak.
     """
     met = {day: meets_goal(n.duration_minutes, target) for day, n in nights.items()}
     longest = run = 0
