@@ -73,6 +73,13 @@ def validate_start(start: datetime, now: datetime) -> None:
         raise ValidationFailedError.for_field("started_at", "cannot be in the future")
 
 
+def validate_running_start(start: datetime, now: datetime) -> None:
+    """A running timer must remain stoppable 'now' without exceeding 20 hours."""
+    validate_start(start, now)
+    if now - start > MAX_DURATION:
+        raise ValidationFailedError.for_field("started_at", "cannot be more than 20 hours ago")
+
+
 class SleepService:
     def __init__(self, session: AsyncSession, tags: TagService, cache: AnalyticsCache) -> None:
         self.session = session
@@ -212,7 +219,7 @@ class SleepService:
         if new_end is not None:
             validate_window(new_start, new_end, now)
         else:
-            validate_start(new_start, now)
+            validate_running_start(new_start, now)
         if start is not None or end is not None:
             await self._ensure_no_overlap(user, new_start, new_end, exclude_id=sleep_session.id)
 
@@ -249,9 +256,7 @@ class SleepService:
     async def start_timer(self, user: User, data: TimerStart) -> SleepSession:
         now = utcnow()
         started_at = data.started_at or now
-        validate_start(started_at, now)
-        if now - started_at > MAX_DURATION:
-            raise ValidationFailedError.for_field("started_at", "cannot be more than 20 hours ago")
+        validate_running_start(started_at, now)
         if await self.repo.get_active(user.id) is not None:
             raise TimerAlreadyRunningError("A sleep timer is already running.")
         await self._ensure_no_overlap(user, started_at, max(now, started_at))

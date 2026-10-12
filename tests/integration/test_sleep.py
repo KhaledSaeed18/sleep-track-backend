@@ -508,6 +508,17 @@ async def test_patch_running_session(account: Account) -> None:
     assert moved.json()["notes"] == "reading first"
 
 
+async def test_patch_running_session_cannot_start_over_20_hours_ago(account: Account) -> None:
+    """Otherwise the timer can no longer be stopped at 'now'."""
+    started = (await account.post(f"{API}/sleep/timer/start")).json()
+    url = f"{API}/sleep/sessions/{started['id']}"
+    rejected = await account.patch(url, json={"started_at": iso(utcnow() - timedelta(hours=21))})
+    assert rejected.status_code == 422
+    assert rejected.json()["errors"][0]["field"] == "started_at"
+    state = (await account.get(f"{API}/sleep/timer")).json()
+    assert state["session"]["started_at"] == started["started_at"]
+
+
 # --------------------------------------------------------------------------- NUL bytes
 @pytest.mark.parametrize(
     ("method", "path", "payload"),
