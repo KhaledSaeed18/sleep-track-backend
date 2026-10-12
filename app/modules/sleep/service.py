@@ -3,7 +3,6 @@ from __future__ import annotations
 import uuid
 from collections.abc import Sequence
 from datetime import datetime, timedelta
-from typing import Any
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -285,15 +284,3 @@ class SleepService:
             raise NoActiveTimerError("There is no running sleep timer.")
         await self.session.delete(sleep_session)
         await self.session.commit()
-
-    # ------------------------------------------------------------------ import support
-    def stage_imported(self, user: User, values: dict[str, Any]) -> SleepSession:
-        sleep_session = SleepSession(
-            id=uuid.uuid4(),
-            user_id=user.id,
-            status=SleepStatus.COMPLETED,
-            source=SleepSource.IMPORT,
-            **values,
-        )
-        self.session.add(sleep_session)
-        return sleep_session

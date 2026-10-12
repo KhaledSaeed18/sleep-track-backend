@@ -164,6 +164,9 @@ def build_history(
                 ),
                 source=SleepSource.MANUAL,
                 tags=[tags[name] for name in chosen],
+                # Logged on waking, which keeps "sessions this week" stats honest.
+                created_at=ended_at,
+                updated_at=ended_at,
             )
         )
     return sessions
