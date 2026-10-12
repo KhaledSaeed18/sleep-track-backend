@@ -27,6 +27,7 @@ frontend for the new contract.
   per-user Redis caching.
 - Insights through a pluggable provider with a deterministic rule engine.
 - Weekly reports on demand and by email; hourly dispatch in each user's timezone.
+- Optional bedtime reminder emails 30 minutes before the goal bedtime.
 - Admin statistics and user management with role-based access.
 - ARQ worker with email, password-reset and report jobs and housekeeping crons.
 - RFC 9457 problem details with stable error codes; request ids; security headers; body size limit;

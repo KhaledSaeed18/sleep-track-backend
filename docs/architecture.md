@@ -189,10 +189,12 @@ produces explainable insights tied to numbers shown elsewhere in the UI. The for
 | `send_password_reset` | enqueued by `/auth/forgot-password` | Look up the account, issue a single-use token, email it |
 | `send_weekly_report` | enqueued by `/reports/weekly/email` | Build and email a weekly report |
 | `dispatch_weekly_reports` | cron, hourly at :00 | Send last week's report to users for whom it is 08:00 on the first day of their week |
+| `dispatch_bedtime_reminders` | cron, every 15 min | Email opted-in users 30 minutes before their goal bedtime, in their timezone |
 | `cleanup_demo_accounts` | cron, :15 and :45 | Delete demo accounts older than `DEMO_ACCOUNT_TTL_HOURS` |
 | `cleanup_expired_tokens` | cron, 03:30 daily | Purge sessions and action tokens expired or revoked over a week ago |
 
-Jobs are idempotent where it matters: weekly dispatch takes a Redis `SET NX` guard per user and week,
+Jobs are idempotent where it matters: weekly dispatch and bedtime reminders take a Redis `SET NX`
+guard per user and week (or night),
 and a failure for one user is logged without stopping the batch. See
 [ADR 0004](adr/0004-arq-background-jobs.md).
 

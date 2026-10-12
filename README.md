@@ -70,7 +70,7 @@ that runs against real Postgres and Redis.
   Bedtimes are averaged with **circular statistics**, so 23:30 and 00:30 average to midnight.
 - A pluggable insight provider with a deterministic, explainable rule engine.
 - Weekly reports on demand or emailed automatically at 08:00 on the first day of each user's week,
-  in their own timezone.
+  in their own timezone, and optional bedtime reminder emails 30 minutes before the goal bedtime.
 
 **Operations**
 - Liveness/readiness probes, Prometheus metrics, structured JSON logs with request ids, optional Sentry
