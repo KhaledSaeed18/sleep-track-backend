@@ -731,8 +731,36 @@ async def test_oauth_links_existing_verified_account(
     )
     response = await _oauth_roundtrip(client)
     assert "next=" in response.headers["location"]
+    refreshed = await client.post(
+        f"{API}/auth/refresh", headers={"X-CSRF-Token": client.cookies.get("st_csrf") or ""}
+    )
+    assert refreshed.status_code == 200
+    assert refreshed.json()["user"]["auth_providers"] == ["google"]  # password was discarded
+
+
+async def test_oauth_takeover_of_unverified_account_revokes_its_sessions(
+    account: Account,
+    client: httpx.AsyncClient,
+    app: FastAPI,
+    monkeypatch: pytest.MonkeyPatch,
+    db: AsyncSession,
+) -> None:
+    """Someone who pre-registers a victim's address must lose access once the real
+    owner signs in with a provider that vouches for the address."""
+    monkeypatch.setitem(
+        app.state.oauth._providers, "google", FakeGoogle(_google_info(account.user["email"]))
+    )
+    response = await _oauth_roundtrip(client)
+    assert "next=" in response.headers["location"]
+
     me = await account.get(f"{API}/users/me")
-    assert me.json()["auth_providers"] == ["google"]  # unverified password was discarded
+    assert me.status_code == 401
+    stale = await account.client.post(f"{API}/auth/refresh", headers=account.csrf_headers())
+    assert stale.status_code == 401
+    login = await _login(account.client, account.user["email"])
+    assert login.status_code == 401
+    reasons = await db.scalars(select(AuthSession.revoked_reason))
+    assert "oauth_takeover" in list(reasons)
 
 
 async def test_oauth_rejects_state_mismatch_and_replay(

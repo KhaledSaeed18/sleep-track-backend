@@ -564,7 +564,7 @@ class AuthService:
         info = await provider.fetch_user(
             code=code, code_verifier=verifier, redirect_uri=self._oauth_redirect_uri(provider_id)
         )
-        user = await self._user_for_oauth(info, client)
+        user, revoked = await self._user_for_oauth(info, client)
         self._ensure_can_sign_in(user)
         user.last_login_at = utcnow()
         result = self._start_session(user, client, remember_me=True)
@@ -576,21 +576,26 @@ class AuthService:
             metadata={"method": info.provider},
         )
         await self.session.commit()
+        await self.revocations.revoke_sessions(revoked)
         return OAuthCompletion(result=result, redirect_to=redirect_to)
 
-    async def _user_for_oauth(self, info: OAuthUserInfo, client: ClientInfo) -> User:
+    async def _user_for_oauth(
+        self, info: OAuthUserInfo, client: ClientInfo
+    ) -> tuple[User, list[uuid.UUID]]:
+        """Return the user to sign in and any device sessions revoked on the way."""
         account = await self.users.get_oauth_account(info.provider, info.account_id)
         if account is not None:
             user = await self.users.get(account.user_id)
             if user is None:  # pragma: no cover - FK cascade makes this unreachable
                 raise OAuthError("account_missing", "Linked account no longer exists.")
-            return user
+            return user, []
 
         if not info.email_verified:
             raise OAuthError("email_unverified", "Your Google email address is not verified.")
 
         user = await self.users.get_by_email(info.email)
         metadata: dict[str, Any] = {"provider": info.provider}
+        revoked: list[uuid.UUID] = []
         if user is None:
             if not self.settings.registration_open:
                 raise OAuthError("registration_closed", "Registration is closed.")
@@ -607,10 +612,13 @@ class AuthService:
             )
         elif not user.is_email_verified:
             # The provider vouches for the address, which also blocks pre-registration
-            # takeover: an unverified password account cannot keep its password.
+            # takeover: whoever created the unverified account cannot keep its
+            # password or any device session it already signed in.
             user.is_email_verified = True
             user.email_verified_at = utcnow()
             user.password_hash = None
+            revoked = await self._revoke_all(user.id, reason="oauth_takeover")
+            metadata["sessions_revoked"] = len(revoked)
         user.oauth_accounts.append(
             OAuthAccount(
                 user_id=user.id,
@@ -622,4 +630,4 @@ class AuthService:
         record_audit(
             self.session, AuditEvent.OAUTH_LINKED, user_id=user.id, client=client, metadata=metadata
         )
-        return user
+        return user, revoked
