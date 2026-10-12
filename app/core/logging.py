@@ -83,8 +83,9 @@ def configure_logging(settings: Settings) -> None:
     root.handlers = [handler]
     root.setLevel(settings.log_level)
 
-    # Uvicorn's access log is replaced by our own structured access log.
-    for name in ("uvicorn", "uvicorn.error"):
+    # Uvicorn's access log is replaced by our own structured access log, and
+    # arq's CLI installs its own handler; route both through ours instead.
+    for name in ("uvicorn", "uvicorn.error", "arq"):
         logging.getLogger(name).handlers = []
         logging.getLogger(name).propagate = True
     logging.getLogger("uvicorn.access").handlers = []
