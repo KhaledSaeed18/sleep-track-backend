@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, File, Query, Response, UploadFile, statu
 from app.core.deps import ClientInfoDep, HasherDep, SettingsDep
 from app.core.errors import ValidationFailedError, problem_responses
 from app.core.pagination import PageParamsDep
+from app.core.rate_limit import RateLimiterDep
 from app.db.session import DbSession
 from app.modules.analytics.cache import AnalyticsCacheDep
 from app.modules.auth.cookies import clear_auth_cookies
@@ -34,8 +35,11 @@ def get_user_service(
     hasher: HasherDep,
     revocations: RevocationStoreDep,
     cache: AnalyticsCacheDep,
+    limiter: RateLimiterDep,
 ) -> UserService:
-    return UserService(session, hasher=hasher, revocations=revocations, cache=cache)
+    return UserService(
+        session, hasher=hasher, revocations=revocations, cache=cache, limiter=limiter
+    )
 
 
 UserServiceDep = Annotated[UserService, Depends(get_user_service)]
@@ -62,7 +66,7 @@ async def update_preferences(
     "/change-password",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Change or set the password",
-    responses=problem_responses(403, 422),
+    responses=problem_responses(403, 422, 429),
 )
 async def change_password(
     data: ChangePasswordRequest,
@@ -165,7 +169,7 @@ async def import_data(
     "",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete the account and all data",
-    responses=problem_responses(422),
+    responses=problem_responses(422, 429),
 )
 async def delete_me(
     data: DeleteAccountRequest, user: CurrentUser, service: UserServiceDep, settings: SettingsDep

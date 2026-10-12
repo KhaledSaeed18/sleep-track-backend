@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import ClientInfo
 from app.core.errors import ForbiddenError, NotFoundError, ValidationFailedError
 from app.core.pagination import Page, PageParams
+from app.core.rate_limit import RateLimit, RateLimiter
 from app.core.security import AccessTokenClaims, PasswordHasher
 from app.core.timeutils import night_of, utcnow
 from app.modules.analytics.cache import AnalyticsCache
@@ -50,6 +51,9 @@ from app.modules.users.schemas import (
 )
 
 IMPORTED_TAG_COLOR = "#64748b"
+# Re-entering the current password is a second factor for sensitive actions; a
+# stolen access token must not be able to brute-force it (or burn Argon2 CPU).
+PASSWORD_CHECK_LIMIT = RateLimit(10, 3600)
 MAX_REPORTED_IMPORT_ERRORS = 100
 
 
@@ -100,11 +104,13 @@ class UserService:
         hasher: PasswordHasher,
         revocations: TokenRevocationStore,
         cache: AnalyticsCache,
+        limiter: RateLimiter,
     ) -> None:
         self.session = session
         self.hasher = hasher
         self.revocations = revocations
         self.cache = cache
+        self.limiter = limiter
         self.auth_repo = AuthRepository(session)
 
     # ------------------------------------------------------------------ profile
@@ -133,6 +139,9 @@ class UserService:
         return Preferences.model_validate(prefs)
 
     # ------------------------------------------------------------------ password
+    async def _limit_password_checks(self, user: User) -> None:
+        await self.limiter.enforce(f"password-check:user:{user.id}", PASSWORD_CHECK_LIMIT)
+
     async def change_password(
         self,
         user: User,
@@ -145,6 +154,7 @@ class UserService:
         if user.has_password:
             if not data.current_password:
                 raise ValidationFailedError.for_field("current_password", "is required")
+            await self._limit_password_checks(user)
             valid, _ = self.hasher.verify(data.current_password, user.password_hash)
             if not valid:
                 raise ValidationFailedError.for_field(
@@ -369,6 +379,7 @@ class UserService:
         if user.has_password:
             if not data.password:
                 raise ValidationFailedError.for_field("password", "is required")
+            await self._limit_password_checks(user)
             valid, _ = self.hasher.verify(data.password, user.password_hash)
             if not valid:
                 raise ValidationFailedError.for_field(

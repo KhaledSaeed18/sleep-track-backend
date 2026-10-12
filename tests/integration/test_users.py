@@ -361,3 +361,30 @@ async def test_demo_account_can_delete_without_password(client: httpx.AsyncClien
         "DELETE", f"{API}/users/me", json={"confirm": "DELETE"}, headers=headers
     )
     assert response.status_code == 204
+
+
+async def test_password_reverification_is_rate_limited(account: Account) -> None:
+    """A stolen access token must not allow unlimited guesses at the password."""
+    from fastapi import FastAPI
+
+    transport = account.client._transport
+    assert isinstance(transport, httpx.ASGITransport)
+    app = transport.app
+    assert isinstance(app, FastAPI)
+    app.state.settings.rate_limit_enabled = True
+
+    statuses = []
+    for attempt in range(11):
+        if attempt % 2:
+            response = await account.delete(
+                f"{API}/users/me", json={"password": "wrong-guess-1", "confirm": "DELETE"}
+            )
+        else:
+            response = await account.post(
+                f"{API}/users/me/change-password",
+                json={"current_password": "wrong-guess-1", "new_password": "BrandNew123x"},
+            )
+        statuses.append(response.status_code)
+    assert statuses[:10] == [422] * 10
+    assert statuses[10] == 429
+    assert response.json()["code"] == "rate_limited"
