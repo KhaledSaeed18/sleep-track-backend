@@ -1,6 +1,6 @@
 # SleepTrack API
 
-[![CI](https://github.com/KhaledSaeed18/sleep-track-backend/actions/workflows/ci.yml/badge.svg?branch=v2)](https://github.com/KhaledSaeed18/sleep-track-backend/actions/workflows/ci.yml)
+[![CI](https://github.com/KhaledSaeed18/sleep-track-backend/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/KhaledSaeed18/sleep-track-backend/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.13-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.143-009688?logo=fastapi&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
