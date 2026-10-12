@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, timedelta
+from dataclasses import dataclass
+from datetime import date, datetime, time, timedelta
 from typing import Any
 
 import structlog
@@ -11,12 +12,13 @@ from redis.exceptions import RedisError
 from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload
 
-from app.core.timeutils import get_zone, utcnow
+from app.core.timeutils import get_zone, night_of, utcnow
 from app.modules.analytics.cache import AnalyticsCache
 from app.modules.auth.audit import record_audit
 from app.modules.auth.models import ActionTokenPurpose, AuditEvent
 from app.modules.auth.repository import AuthRepository
 from app.modules.auth.service import create_action_token
+from app.modules.goals.models import SleepGoal
 from app.modules.insights.providers import build_insight_provider
 from app.modules.reports.service import ReportService, last_full_week_start, report_email_context
 from app.modules.users.models import User, UserPreferences, WeekStart
@@ -28,6 +30,10 @@ logger = structlog.get_logger(__name__)
 
 WEEKLY_REPORT_LOCAL_HOUR = 8
 _WEEKLY_DEDUPE_TTL = 8 * 86400
+REMINDER_LEAD_MINUTES = 30
+REMINDER_SLOT_MINUTES = 15
+DEFAULT_BEDTIME = time(23, 0)
+_REMINDER_DEDUPE_TTL = 2 * 86400
 
 
 async def send_email(
@@ -134,6 +140,83 @@ async def dispatch_weekly_reports(ctx: dict[str, Any]) -> int:
     return sent
 
 
+@dataclass(frozen=True, slots=True)
+class _Reminder:
+    user_id: str
+    email: str
+    first_name: str
+    night: str
+    bedtime: str
+
+
+def _reminder_due(local_now: datetime, bedtime: time) -> bool:
+    """True during the cron slot that starts ``REMINDER_LEAD_MINUTES`` before bedtime."""
+    reminder = (bedtime.hour * 60 + bedtime.minute - REMINDER_LEAD_MINUTES) % 1440
+    current = local_now.hour * 60 + local_now.minute
+    return (current - reminder) % 1440 < REMINDER_SLOT_MINUTES
+
+
+async def dispatch_bedtime_reminders(ctx: dict[str, Any]) -> int:
+    """Every 15 minutes: remind opted-in users shortly before their goal bedtime."""
+    res = resources(ctx)
+    now = utcnow()
+    async with res.session_factory() as session:
+        rows = await session.execute(
+            select(User, SleepGoal.target_bedtime)
+            .join(UserPreferences)
+            .outerjoin(SleepGoal, SleepGoal.user_id == User.id)
+            .where(
+                User.is_active.is_(True),
+                User.is_demo.is_(False),
+                User.is_email_verified.is_(True),
+                UserPreferences.email_bedtime_reminder.is_(True),
+            )
+        )
+        due: list[_Reminder] = []
+        for user, target in rows:
+            bedtime = target or DEFAULT_BEDTIME
+            tz = user.preferences.timezone
+            if _reminder_due(now.astimezone(get_zone(tz)), bedtime):
+                due.append(
+                    _Reminder(
+                        user_id=str(user.id),
+                        email=user.email,
+                        first_name=user.first_name,
+                        night=night_of(now, tz).isoformat(),
+                        bedtime=f"{bedtime:%H:%M}",
+                    )
+                )
+
+    sent = 0
+    for reminder in due:
+        try:
+            fresh = await res.redis.set(
+                f"bedtime-reminder:{reminder.user_id}:{reminder.night}",
+                "1",
+                nx=True,
+                ex=_REMINDER_DEDUPE_TTL,
+            )
+        except RedisError:
+            fresh = True
+        if not fresh:
+            continue
+        try:
+            await res.email.send_template(
+                reminder.email,
+                "bedtime_reminder",
+                {
+                    "first_name": reminder.first_name,
+                    "bedtime": reminder.bedtime,
+                    "lead_minutes": REMINDER_LEAD_MINUTES,
+                },
+            )
+            sent += 1
+        except Exception:
+            logger.exception("bedtime_reminder_failed", user_id=reminder.user_id)
+    logger.info("bedtime_reminders_dispatched", sent=sent, due=len(due))
+    return sent
+
+
 async def cleanup_demo_accounts(ctx: dict[str, Any]) -> int:
     res = resources(ctx)
     cutoff = utcnow() - timedelta(hours=res.settings.demo_account_ttl_hours)
@@ -166,6 +249,7 @@ JOB_FUNCTIONS: dict[str, JobFunction] = {
     "send_password_reset": send_password_reset,
     "send_weekly_report": send_weekly_report,
     "dispatch_weekly_reports": dispatch_weekly_reports,
+    "dispatch_bedtime_reminders": dispatch_bedtime_reminders,
     "cleanup_demo_accounts": cleanup_demo_accounts,
     "cleanup_expired_tokens": cleanup_expired_tokens,
 }

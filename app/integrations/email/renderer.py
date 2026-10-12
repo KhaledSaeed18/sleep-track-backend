@@ -19,6 +19,7 @@ SUBJECTS: dict[str, str] = {
     "password_changed": "Your SleepTrack password was changed",
     "security_alert": "Security alert for your SleepTrack account",
     "weekly_report": "Your SleepTrack weekly report ({week_label})",
+    "bedtime_reminder": "Time to start winding down",
 }
 
 

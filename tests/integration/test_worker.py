@@ -33,7 +33,7 @@ def ctx(app: FastAPI) -> dict[str, Any]:
 async def test_worker_settings_registers_jobs() -> None:
     names = {getattr(f, "__name__", "") for f in WorkerSettings.functions}
     assert names == set(tasks.JOB_FUNCTIONS)
-    assert len(WorkerSettings.cron_jobs) == 3
+    assert len(WorkerSettings.cron_jobs) == 4
 
 
 async def test_cleanup_demo_accounts(
@@ -166,3 +166,49 @@ async def test_dispatch_continues_after_a_failure(
     monkeypatch.setattr(tasks, "utcnow", lambda: datetime(2026, 10, 12, 8, 0, tzinfo=UTC))
     assert await tasks.dispatch_weekly_reports(ctx) == 1
     assert len(calls) == 2
+
+
+async def test_bedtime_reminders_follow_goal_and_timezone(
+    ctx: dict[str, Any],
+    make_account: AccountFactory,
+    db: AsyncSession,
+    mails: list[EmailMessage],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    beirut = await make_account("night@example.com", timezone="Asia/Beirut")
+    paris = await make_account("paris@example.com", timezone="Europe/Paris")
+    silent = await make_account("silent@example.com", timezone="Asia/Beirut")
+    for acc in (beirut, paris, silent):
+        await _verify(db, acc)
+    for acc in (beirut, paris):
+        await acc.patch(f"{API}/users/me/preferences", json={"email_bedtime_reminder": True})
+    await beirut.put(
+        f"{API}/goals",
+        json={
+            "target_duration_minutes": 480,
+            "target_bedtime": "00:15",
+            "target_wake_time": "08:15",
+            "bedtime_window_minutes": 30,
+        },
+    )
+    mails.clear()
+
+    # In October Paris is UTC+2 and Beirut UTC+3. Paris keeps the default 23:00 goal,
+    # so its reminder slot is 22:30-22:45 local, i.e. 20:30-20:45 UTC.
+    monkeypatch.setattr(tasks, "utcnow", lambda: datetime(2026, 10, 12, 20, 35, tzinfo=UTC))
+    assert await tasks.dispatch_bedtime_reminders(ctx) == 1
+    assert [m.to for m in mails] == ["paris@example.com"]
+    assert "23:00" in mails[0].text
+
+    # Beirut goal 00:15 -> reminder slot 23:45-00:00 local = 20:45-21:00 UTC (crosses midnight).
+    monkeypatch.setattr(tasks, "utcnow", lambda: datetime(2026, 10, 12, 20, 50, tzinfo=UTC))
+    assert await tasks.dispatch_bedtime_reminders(ctx) == 1
+    assert mails[-1].to == "night@example.com"
+    assert mails[-1].subject == "Time to start winding down"
+
+    # Same slot again: deduplicated per night.
+    assert await tasks.dispatch_bedtime_reminders(ctx) == 0
+    # Outside every slot.
+    monkeypatch.setattr(tasks, "utcnow", lambda: datetime(2026, 10, 12, 12, 0, tzinfo=UTC))
+    assert await tasks.dispatch_bedtime_reminders(ctx) == 0
+    assert len(mails) == 2

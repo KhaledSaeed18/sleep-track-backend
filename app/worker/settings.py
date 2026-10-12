@@ -48,6 +48,7 @@ class WorkerSettings:
     functions: ClassVar[list[Any]] = list(tasks.JOB_FUNCTIONS.values())
     cron_jobs: ClassVar[list[CronJob]] = [
         cron(tasks.dispatch_weekly_reports, minute={0}, run_at_startup=False),
+        cron(tasks.dispatch_bedtime_reminders, minute={0, 15, 30, 45}),
         cron(tasks.cleanup_demo_accounts, minute={15, 45}),
         cron(tasks.cleanup_expired_tokens, hour={3}, minute={30}),
     ]
