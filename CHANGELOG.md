@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+- Use Python 3.13 in the Docker runtime so installed dependencies load and database migrations start.
+
 ## [2.0.0] - 2026-10-12
 
 A ground-up rewrite. The v1 API is not compatible with v2; the new contract is the OpenAPI
