@@ -17,7 +17,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --extra observability --no-install-project
 
 # ---------------------------------------------------------------------------- runtime
-FROM python:3.14-slim-trixie AS runtime
+# Match the builder and the supported Python range in pyproject.toml.
+FROM python:3.13-slim-trixie AS runtime
 
 ARG APP_VERSION=2.0.0
 LABEL org.opencontainers.image.title="sleeptrack-api" \
