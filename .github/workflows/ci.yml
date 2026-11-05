@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.3.0
+      - uses: astral-sh/setup-uv@v10.3.2
         with:
           enable-cache: true
           python-version: ${{ env.PYTHON_VERSION }}
@@ -69,7 +69,7 @@ jobs:
       DATABASE_URL: postgresql+asyncpg://sleeptrack:sleeptrack@localhost:5432/sleeptrack
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.3.0
+      - uses: astral-sh/setup-uv@v10.3.2
         with:
           enable-cache: true
           python-version: ${{ env.PYTHON_VERSION }}
